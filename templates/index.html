@@ -33,6 +33,7 @@ header h1 {
     color: transparent;
     -webkit-text-fill-color: transparent;
     animation: shine 3s linear infinite;
+    margin-top: 80px;
 }
 
 @keyframes shine {
@@ -238,7 +239,7 @@ function speakEnglish(text) {
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "en-US";
-    u.rate = 0.95;
+    u.rate = 0.7;
 
     u.onstart = () => {
         document.getElementById("status").innerText = "🔊 Reading output...";
