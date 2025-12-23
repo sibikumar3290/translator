@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Flexidigit.ai | Voice Translator</title>
+
 <style>
 body {
     margin: 0;
@@ -15,12 +16,36 @@ body {
     justify-content: space-between;
     align-items: center;
 }
+
 header {
     margin-top: 30px;
     text-align: center;
 }
-header h1 { margin: 0; font-size: 28px; }
-header p { margin-top: 6px; font-size: 14px; color: #ccc; }
+
+header h1 {
+    margin: 0;
+    font-size: 68px;
+    font-weight: bold;
+    background: linear-gradient(120deg,#d89b20 20%,#d0d0d0 50%,#d89b20 80%);
+    background-size: 200% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    animation: shine 3s linear infinite;
+}
+
+@keyframes shine {
+    from { background-position: -200% 0; }
+    to { background-position: 200% 0; }
+}
+
+header p {
+    margin-top: 20px;
+    font-size: 22px;
+    color: #ccc;
+}
+
 .box {
     width: 360px;
     padding: 25px;
@@ -28,8 +53,9 @@ header p { margin-top: 6px; font-size: 14px; color: #ccc; }
     background: rgba(255,255,255,0.08);
     backdrop-filter: blur(18px);
     border: 1px solid rgba(255,255,255,0.15);
-    box-shadow: 0 0 40px rgba(255,140,0,0.2);
+    box-shadow: 0 0 40px rgba(255,140,0,0.25);
 }
+
 select, textarea {
     width: 100%;
     margin-bottom: 12px;
@@ -39,13 +65,54 @@ select, textarea {
     color: white;
     border: 1px solid rgba(255,255,255,0.2);
 }
-textarea { height: 70px; resize: none; }
-button { width: 100%; padding: 12px; border-radius: 10px; border: none; cursor: pointer; background: linear-gradient(90deg,#ff8c00,#ffb347); color: black; font-size:15px; box-shadow:0 0 12px #ff8c00;}
-.status { margin-top:8px; font-size:12px; color:#ffa500; }
-.output { margin-top:12px; min-height:40px; padding:10px; border-radius:10px; background: rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.2);}
-footer { font-size:12px; color:#aaa; margin-bottom:15px; }
+
+textarea {
+    height: 70px;
+    resize: none;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(90deg,#ff8c00,#ffb347);
+    color: black;
+    font-size: 15px;
+    box-shadow: 0 0 12px #ff8c00;
+}
+
+.stop-btn {
+    margin-top: 10px;
+    background: #333;
+    color: white;
+    box-shadow: none;
+}
+
+.status {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #ffa500;
+}
+
+.output {
+    margin-top: 12px;
+    min-height: 40px;
+    padding: 10px;
+    border-radius: 10px;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+footer {
+    font-size: 14px;
+    color: #aaa;
+    margin-bottom: 15px;
+}
 </style>
 </head>
+
 <body>
 
 <header>
@@ -54,6 +121,7 @@ footer { font-size:12px; color:#aaa; margin-bottom:15px; }
 </header>
 
 <div class="box">
+
     <select id="lang">
         <option value="ta-IN">Tamil</option>
         <option value="hi-IN">Hindi</option>
@@ -66,10 +134,14 @@ footer { font-size:12px; color:#aaa; margin-bottom:15px; }
 
     <textarea id="inputText" placeholder="Listening... Speak anytime"></textarea>
 
-    <button onclick="enableMic()">🔓 Enable Microphone</button>
+    <button onclick="enableMic()">🎤 Enable Microphone</button>
+
     <div class="status" id="status">Waiting for microphone permission</div>
 
     <div class="output" id="outputText"></div>
+
+    <button class="stop-btn" onclick="stopReading()">⏹ Stop Reading</button>
+
 </div>
 
 <footer>© 2025 Flexidigit – All Rights Reserved</footer>
@@ -77,40 +149,68 @@ footer { font-size:12px; color:#aaa; margin-bottom:15px; }
 <script>
 let recognition;
 let micEnabled = false;
+let isSpeaking = false;
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+document.getElementById("lang").addEventListener("change", () => {
+    if (!recognition) return;
+
+    recognition.stop();
+    recognition.lang = document.getElementById("lang").value;
+
+    if (micEnabled && !isSpeaking) {
+        recognition.start();
+    }
+});
 
 function enableMic() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) { alert("Speech recognition not supported"); return; }
+    if (!SpeechRecognition) {
+        alert("Speech recognition not supported");
+        return;
+    }
 
     recognition = new SpeechRecognition();
-    recognition.continuous = false;  
-    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = document.getElementById("lang").value;
 
     micEnabled = true;
-    document.getElementById("status").innerText = "Listening... Speak anytime";
 
-    recognition.onspeechstart = () => { document.getElementById("status").innerText = "🎤 Speaking..."; };
-    recognition.onspeechend = () => { document.getElementById("status").innerText = "Processing..."; };
-
-    recognition.onresult = (event) => {
-        const text = event.results[0][0].transcript;
-        document.getElementById("inputText").value = text;
-
-        // Use user-selected language from dropdown
-        const selectedLang = document.getElementById("lang").value;
-        recognition.lang = selectedLang;
-
-        translateText(text);
+    recognition.onstart = () => {
+        document.getElementById("status").innerText = "🎤 Listening...";
     };
 
-    recognition.onerror = (e) => {
-        console.error("Mic error:", e.error);
-        document.getElementById("status").innerText = "Error: " + e.error;
+    recognition.onresult = (event) => {
+        if (isSpeaking) return;
+
+        let finalText = "";
+        let interimText = "";
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) finalText += transcript;
+            else interimText += transcript;
+        }
+
+        if (interimText) {
+            document.getElementById("inputText").value = interimText;
+        }
+
+        if (finalText) {
+            recognition.stop();
+            document.getElementById("inputText").value = finalText;
+            document.getElementById("status").innerText = "🔄 Translating...";
+            translateText(finalText);
+        }
     };
 
     recognition.onend = () => {
-        document.getElementById("status").innerText = "Waiting for next speech...";
-        // No auto restart
+        if (micEnabled && !isSpeaking) recognition.start();
+    };
+
+    recognition.onerror = () => {
+        document.getElementById("status").innerText = "Microphone error";
     };
 
     recognition.start();
@@ -131,10 +231,33 @@ function translateText(text) {
 
 function speakEnglish(text) {
     if (!window.speechSynthesis) return;
+
+    isSpeaking = true;
+    recognition.stop();
+
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "en-US";
+    u.rate = 0.95;
+
+    u.onstart = () => {
+        document.getElementById("status").innerText = "🔊 Reading output...";
+    };
+
+    u.onend = () => {
+        isSpeaking = false;
+        document.getElementById("status").innerText = "🎤 Listening...";
+        if (micEnabled) recognition.start();
+    };
+
     window.speechSynthesis.speak(u);
+}
+
+function stopReading() {
+    window.speechSynthesis.cancel();
+    isSpeaking = false;
+    document.getElementById("status").innerText = "🎤 Listening...";
+    if (micEnabled) recognition.start();
 }
 </script>
 
