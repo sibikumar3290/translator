@@ -75,7 +75,6 @@ textarea {
     margin: 0;
     box-sizing: border-box;
 }
-
 button {
     width: 100%;
     padding: 12px;
@@ -139,7 +138,7 @@ footer {
 
     <textarea id="inputText" placeholder="Listening... Speak anytime"></textarea>
 
-    <button onclick="enableMic()">🎤 Enable Microphone</button>
+    <button id="micBtn" onclick="enableMic()">🎤 Enable Microphone</button>
 
     <div class="status" id="status">Waiting for microphone permission</div>
 
@@ -152,29 +151,34 @@ footer {
 <footer>© 2025 Flexidigit – All Rights Reserved</footer>
 
 <script>
-let recognition;
+let recognition = null;
 let micEnabled = false;
 let isSpeaking = false;
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
+const langMap = {
+    "ta-IN": "ta",
+    "hi-IN": "hi",
+    "ml-IN": "ml",
+    "ar-SA": "ar",
+    "fr-FR": "fr",
+    "de-DE": "de",
+    "en-US": "en"
+};
+
+// Proper language switch
 document.getElementById("lang").addEventListener("change", () => {
-    if (!recognition) return;
-
-    recognition.stop();
-    recognition.lang = document.getElementById("lang").value;
-
-    if (micEnabled && !isSpeaking) {
-        recognition.start();
+    if (!micEnabled) return;
+    if (recognition) {
+        recognition.onend = null;
+        recognition.stop();
+        recognition = null;
     }
+    enableMic();
 });
 
 function enableMic() {
-    if (!SpeechRecognition) {
-        alert("Speech recognition not supported");
-        return;
-    }
-
     recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
@@ -182,9 +186,10 @@ function enableMic() {
 
     micEnabled = true;
 
-    recognition.onstart = () => {
-        document.getElementById("status").innerText = "🎤 Listening...";
-    };
+    const micBtn = document.getElementById("micBtn");
+    micBtn.innerText = "🔴 Listening...";
+    micBtn.style.background = "#ff3b3b";
+    micBtn.style.color = "white";
 
     recognition.onresult = (event) => {
         if (isSpeaking) return;
@@ -194,17 +199,19 @@ function enableMic() {
 
         for (let i = event.resultIndex; i < event.results.length; i++) {
             const transcript = event.results[i][0].transcript;
-            if (event.results[i].isFinal) finalText += transcript;
-            else interimText += transcript;
+            if (event.results[i].isFinal) {
+                finalText += transcript;
+            } else {
+                interimText += transcript;
+            }
         }
 
-        if (interimText) {
-            document.getElementById("inputText").value = interimText;
-        }
+        // 🔴 LIVE TEXT while speaking
+        document.getElementById("inputText").value = finalText + interimText;
 
+        // ✅ Translate ONLY when final sentence completes
         if (finalText) {
             recognition.stop();
-            document.getElementById("inputText").value = finalText;
             document.getElementById("status").innerText = "🔄 Translating...";
             translateText(finalText);
         }
@@ -214,10 +221,6 @@ function enableMic() {
         if (micEnabled && !isSpeaking) recognition.start();
     };
 
-    recognition.onerror = () => {
-        document.getElementById("status").innerText = "Microphone error";
-    };
-
     recognition.start();
 }
 
@@ -225,7 +228,10 @@ function translateText(text) {
     fetch("/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text })
+        body: JSON.stringify({
+            text: text,
+            src: langMap[document.getElementById("lang").value]
+        })
     })
     .then(res => res.json())
     .then(data => {
@@ -235,33 +241,24 @@ function translateText(text) {
 }
 
 function speakEnglish(text) {
-    if (!window.speechSynthesis) return;
-
     isSpeaking = true;
     recognition.stop();
 
-    window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "en-US";
-    u.rate = 0.7;
-
-    u.onstart = () => {
-        document.getElementById("status").innerText = "🔊 Reading output...";
-    };
 
     u.onend = () => {
         isSpeaking = false;
-        document.getElementById("status").innerText = "🎤 Listening...";
         if (micEnabled) recognition.start();
     };
 
-    window.speechSynthesis.speak(u);
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
 }
 
 function stopReading() {
-    window.speechSynthesis.cancel();
+    speechSynthesis.cancel();
     isSpeaking = false;
-    document.getElementById("status").innerText = "🎤 Listening...";
     if (micEnabled) recognition.start();
 }
 </script>
