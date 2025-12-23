@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Flexidigit.ai | Voice Translator</title>
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #000;
+    color: white;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+}
+header {
+    margin-top: 30px;
+    text-align: center;
+}
+header h1 { margin: 0; font-size: 28px; }
+header p { margin-top: 6px; font-size: 14px; color: #ccc; }
+.box {
+    width: 360px;
+    padding: 25px;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(18px);
+    border: 1px solid rgba(255,255,255,0.15);
+    box-shadow: 0 0 40px rgba(255,140,0,0.2);
+}
+select, textarea {
+    width: 100%;
+    margin-bottom: 12px;
+    padding: 10px;
+    border-radius: 10px;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+textarea { height: 70px; resize: none; }
+button { width: 100%; padding: 12px; border-radius: 10px; border: none; cursor: pointer; background: linear-gradient(90deg,#ff8c00,#ffb347); color: black; font-size:15px; box-shadow:0 0 12px #ff8c00;}
+.status { margin-top:8px; font-size:12px; color:#ffa500; }
+.output { margin-top:12px; min-height:40px; padding:10px; border-radius:10px; background: rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.2);}
+footer { font-size:12px; color:#aaa; margin-bottom:15px; }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Flexidigit.ai</h1>
+    <p>Breaking language barriers through intelligent voice translation</p>
+</header>
+
+<div class="box">
+    <select id="lang">
+        <option value="ta-IN">Tamil</option>
+        <option value="hi-IN">Hindi</option>
+        <option value="ml-IN">Malayalam</option>
+        <option value="ar-SA">Arabic</option>
+        <option value="fr-FR">French</option>
+        <option value="de-DE">German</option>
+        <option value="en-US">English</option>
+    </select>
+
+    <textarea id="inputText" placeholder="Listening... Speak anytime"></textarea>
+
+    <button onclick="enableMic()">🔓 Enable Microphone</button>
+    <div class="status" id="status">Waiting for microphone permission</div>
+
+    <div class="output" id="outputText"></div>
+</div>
+
+<footer>© 2025 Flexidigit – All Rights Reserved</footer>
+
+<script>
+let recognition;
+let micEnabled = false;
+
+function enableMic() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) { alert("Speech recognition not supported"); return; }
+
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;  
+    recognition.interimResults = false;
+
+    micEnabled = true;
+    document.getElementById("status").innerText = "Listening... Speak anytime";
+
+    recognition.onspeechstart = () => { document.getElementById("status").innerText = "🎤 Speaking..."; };
+    recognition.onspeechend = () => { document.getElementById("status").innerText = "Processing..."; };
+
+    recognition.onresult = (event) => {
+        const text = event.results[0][0].transcript;
+        document.getElementById("inputText").value = text;
+
+        // Use user-selected language from dropdown
+        const selectedLang = document.getElementById("lang").value;
+        recognition.lang = selectedLang;
+
+        translateText(text);
+    };
+
+    recognition.onerror = (e) => {
+        console.error("Mic error:", e.error);
+        document.getElementById("status").innerText = "Error: " + e.error;
+    };
+
+    recognition.onend = () => {
+        document.getElementById("status").innerText = "Waiting for next speech...";
+        // No auto restart
+    };
+
+    recognition.start();
+}
+
+function translateText(text) {
+    fetch("/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("outputText").innerText = data.translated;
+        speakEnglish(data.translated);
+    });
+}
+
+function speakEnglish(text) {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "en-US";
+    window.speechSynthesis.speak(u);
+}
+</script>
+
+</body>
+</html>
